@@ -21,12 +21,13 @@ void main() async {
 class HomeScreen extends StatelessWidget {
   final CameraDescription camera;
 
-  const HomeScreen({Key? key, required this.camera}) : super(key: key);
+  const HomeScreen({super.key, required this.camera});
+  
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Home')),
+      appBar: AppBar(title: const Text('Home')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -40,7 +41,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                 );
               },
-              child: Text('Go to Camera'),
+              child: const Text('Go to Camera'),
             ),
            
             ElevatedButton(
@@ -52,7 +53,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                 );
               },
-              child: Text('Go to Video Stream Viewer'),
+              child: const Text('Go to Video Stream Viewer'),
             ),
           ],
         ),

@@ -5,7 +5,6 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:async';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:math';
-import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 
 class CameraScreen extends StatefulWidget {
   final CameraDescription camera;
@@ -25,6 +24,8 @@ String generateToken() {
   return token;
 }
 
+
+
 class _CameraScreenState extends State<CameraScreen> {
   late CameraController _controller;
   late Future<void> _initializeControllerFuture;
@@ -32,15 +33,16 @@ class _CameraScreenState extends State<CameraScreen> {
   late Timer _timer;
   bool _isRecording = false;
   ResolutionPreset _currentResolution = ResolutionPreset.medium;
+  late var token ;
 
   @override
   void initState() {
+    token = generateToken();
     super.initState();
     _initializeController();
   }
 
   
-
   void _initializeController() {
     _controller = CameraController(
       widget.camera,
@@ -49,9 +51,10 @@ class _CameraScreenState extends State<CameraScreen> {
     _initializeControllerFuture = _controller.initialize();
 
     // Inisialisasi socket.io
-    _socket = IO.io('https://hcfjzjl0-3000.asse.devtunnels.ms/', IO.OptionBuilder().setTransports(['websocket']).build());
+    _socket = IO.io('https://hcfjzjl0-3000.asse.devtunnels.ms/', IO.OptionBuilder().setTransports(['websocket']).setReconnectionDelayMax(600000).enableForceNew().enableAutoConnect().build());
     _socket.onConnect((_) {
       print('Connected to socket.io server');
+      _socket.emit('join_room', token);
       Fluttertoast.showToast(
         msg: "Terhubung",
         toastLength: Toast.LENGTH_SHORT,
@@ -77,7 +80,7 @@ class _CameraScreenState extends State<CameraScreen> {
     try {
       await _controller.startVideoRecording();
       _isRecording = true;
-      _timer = Timer.periodic(Duration(seconds: 5), (Timer t) => _sendVideoSegment());
+      _timer = Timer.periodic(Duration(seconds:6), (Timer t) => _sendVideoSegment());
       Fluttertoast.showToast(
         msg: "siap rekam",
         toastLength: Toast.LENGTH_SHORT,
@@ -102,22 +105,20 @@ class _CameraScreenState extends State<CameraScreen> {
 
     try {
       final videoFile = await _controller.stopVideoRecording();
-      print(videoFile.path);
-      await FFmpegKit.execute('-i $videoFile.path -r 15 -vcodec libx264 -crf 28 -preset veryfast $videoFile.path');
+        final videoBytes = await videoFile.readAsBytes();
 
-      final videoBytes = await videoFile.readAsBytes();
+        // Kirim data video ke server
+        _socket.emit('videoChunk', videoBytes);
+        Fluttertoast.showToast(
+          msg: "Mengirim data ke server",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.black,
+          textColor: Colors.white,
+        );
 
-      // Kirim data video ke server
-      _socket.emit('videoChunk', videoBytes);
-      Fluttertoast.showToast(
-        msg: "Mengirim data ke server",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.black,
-        textColor: Colors.white,
-      );
-      // Mulai merekam video lagi
-      await _controller.startVideoRecording();
+         // Mulai merekam video lagi
+         await _controller.startVideoRecording();
     } catch (e) {
       print('Error sending video segment: $e');
       Fluttertoast.showToast(
@@ -149,7 +150,7 @@ class _CameraScreenState extends State<CameraScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(generateToken()),
+        title: Text(token),
         actions: [
           PopupMenuButton<ResolutionPreset>(
             onSelected: _onResolutionChanged,

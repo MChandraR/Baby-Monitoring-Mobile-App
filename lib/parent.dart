@@ -16,7 +16,10 @@ class _VideoStreamViewerState extends State<VideoStreamViewer> {
   late IO.Socket _socket;
   late List<int> _videoBuffer;
   bool _isBuffering = false;
+  String _userInput = '';
 
+  // Fungsi untuk menampilkan dialog input
+  
   @override
   void initState() {
     super.initState();
@@ -24,10 +27,55 @@ class _VideoStreamViewerState extends State<VideoStreamViewer> {
     _initializeSocket();
   }
 
+  Future<void> _showInputDialog() async {
+    TextEditingController _controller = TextEditingController();
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // Dialog tidak dapat ditutup dengan tap di luar
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Masukkan Room ID'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('Silakan masukkan token / room-id:'),
+                TextField(
+                  controller: _controller,
+                  decoration: InputDecoration(hintText: 'Masukkan id room/token'),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Batal'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Hubungkan'),
+              onPressed: () {
+                _socket.emit('join_room', _controller.text);
+
+                setState(() {
+                  _userInput = _controller.text;
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _initializeSocket() {
     _socket = IO.io('https://hcfjzjl0-3000.asse.devtunnels.ms/', IO.OptionBuilder().setTransports(['websocket']).build());
     _socket.onConnect((_) {
       print('Connected to socket.io server');
+      _showInputDialog();
       Fluttertoast.showToast(
         msg: "Terhubung",
         toastLength: Toast.LENGTH_SHORT,
