@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'dart:async';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:typed_data';
 import 'dart:io';
+import 'package:babymonitoring/config.dart';
 
 class VideoStreamViewer extends StatefulWidget {
   @override
@@ -13,10 +14,12 @@ class VideoStreamViewer extends StatefulWidget {
 
 class _VideoStreamViewerState extends State<VideoStreamViewer> {
   VideoPlayerController? _controller;
-  late IO.Socket _socket;
+  late io.Socket _socket;
   late List<int> _videoBuffer;
   bool _isBuffering = false;
   String _userInput = '';
+  double _humidity = 0;
+  double _temperature = 0;
 
   // Fungsi untuk menampilkan dialog input
   
@@ -72,7 +75,7 @@ class _VideoStreamViewerState extends State<VideoStreamViewer> {
   }
 
   void _initializeSocket() {
-    _socket = IO.io('https://hcfjzjl0-3000.asse.devtunnels.ms/', IO.OptionBuilder().setTransports(['websocket']).build());
+    _socket = io.io(Config().url, io.OptionBuilder().setTransports(['websocket']).build());
     _socket.onConnect((_) {
       print('Connected to socket.io server');
       _showInputDialog();
@@ -85,14 +88,23 @@ class _VideoStreamViewerState extends State<VideoStreamViewer> {
       );
     });
 
+    _socket.on('sensorData', (data){
+      try{
+          _temperature = data['data']['suhu'].toDouble();
+          _humidity =  data['data']['kelembapan'].toDouble();
+      }catch(e){
+        Fluttertoast.showToast(
+          msg: "Error " + e.toString(),
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.black,
+          textColor: Colors.white,
+        );
+      }
+      
+    });
+
     _socket.on('videoChunk', (chunk) {
-      Fluttertoast.showToast(
-        msg: "Menerima chunk",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.black,
-        textColor: Colors.white,
-      );
       setState(() {
         _videoBuffer.addAll(List<int>.from(chunk));
       });
@@ -110,13 +122,7 @@ class _VideoStreamViewerState extends State<VideoStreamViewer> {
     setState(() {
       _isBuffering = true;
     });
-    Fluttertoast.showToast(
-      msg: "Play start",
-      toastLength: Toast.LENGTH_SHORT,
-      gravity: ToastGravity.BOTTOM,
-      backgroundColor: Colors.black,
-      textColor: Colors.white,
-    );
+   
     if (_videoBuffer.isNotEmpty) {
       try {
         final file = File('${Directory.systemTemp.path}/${DateTime.now().millisecondsSinceEpoch}.webm');
@@ -169,14 +175,35 @@ class _VideoStreamViewerState extends State<VideoStreamViewer> {
     return Scaffold(
       appBar: AppBar(title: Text('Video Stream Viewer')),
       body: Center(
-        child: _isBuffering || (_controller != null && !_controller!.value.isInitialized)
-            ? CircularProgressIndicator()
-            : _controller != null && _controller!.value.isInitialized
-                ? AspectRatio(
-                    aspectRatio: _controller!.value.aspectRatio,
-                    child: VideoPlayer(_controller!),
-                  )
-                : Text('No video available'),
+        child: Stack(
+          children: [
+            _isBuffering || (_controller != null && !_controller!.value.isInitialized)
+                ? CircularProgressIndicator()
+                : _controller != null && _controller!.value.isInitialized
+                    ? AspectRatio(
+                        aspectRatio: _controller!.value.aspectRatio,
+                        child: VideoPlayer(_controller!),
+                      )
+                    : Text('No video available'),
+            Positioned(
+              left: 10,
+              top: 10,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Temperature: ${_temperature.toStringAsFixed(1)}°C',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Humidity: ${_humidity.toStringAsFixed(1)}%',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

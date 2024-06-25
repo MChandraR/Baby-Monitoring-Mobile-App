@@ -1,10 +1,13 @@
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:async';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:math';
+import 'package:babymonitoring/config.dart';
 
 class CameraScreen extends StatefulWidget {
   final CameraDescription camera;
@@ -51,7 +54,7 @@ class _CameraScreenState extends State<CameraScreen> {
     _initializeControllerFuture = _controller.initialize();
 
     // Inisialisasi socket.io
-    _socket = IO.io('https://hcfjzjl0-3000.asse.devtunnels.ms/', IO.OptionBuilder().setTransports(['websocket']).setReconnectionDelayMax(600000).enableForceNew().enableAutoConnect().build());
+    _socket = IO.io(Config().url, IO.OptionBuilder().setTransports(['websocket']).setReconnectionDelayMax(600000).enableForceNew().enableAutoConnect().build());
     _socket.onConnect((_) {
       print('Connected to socket.io server');
       _socket.emit('join_room', token);
@@ -116,6 +119,7 @@ class _CameraScreenState extends State<CameraScreen> {
           backgroundColor: Colors.black,
           textColor: Colors.white,
         );
+        File(videoFile.path).delete();
 
          // Mulai merekam video lagi
          await _controller.startVideoRecording();
