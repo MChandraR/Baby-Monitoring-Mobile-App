@@ -1,6 +1,6 @@
 # Baby Monitoring - Mobile Apps (Client side)
 
-A new Flutter project.
+Project untuk memonitoring Baby melalui aplikasi berbasis mobile dengan Menggunakan Framework Flutter 
 
 ## Getting Started
 
